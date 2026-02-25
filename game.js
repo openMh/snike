@@ -206,11 +206,11 @@ class Snake {
 
         // Glow effect
         ctx.shadowBlur = CONFIG.GLOW_INTENSITY;
-        ctx.shadowColor = CONFIG.PRIMARY_NEON;
+        ctx.shadowColor = this.color || CONFIG.PRIMARY_NEON;
 
         // Draw body
         ctx.beginPath();
-        ctx.strokeStyle = CONFIG.PRIMARY_NEON;
+        ctx.strokeStyle = this.color || CONFIG.PRIMARY_NEON;
         ctx.lineWidth = CONFIG.SNAKE_WIDTH;
 
         ctx.moveTo(this.segments[0].x, this.segments[0].y);
@@ -260,9 +260,13 @@ class Game {
         this.particles = [];
         this.score = 0;
         this.highScore = localStorage.getItem('snike_highscore') || 0;
-        this.gameState = 'START'; // START, PLAYING, OVER, PAUSED
+        this.userName = localStorage.getItem('snike_user') || '';
+        this.snakeColor = localStorage.getItem('snike_color') || CONFIG.PRIMARY_NEON;
+        this.gameTheme = localStorage.getItem('snike_theme') || 'space';
+        this.gameState = 'AUTH';
         this.gravityIndex = 0;
         this.lastGravityChange = 0;
+        this.mobileDirection = null;
 
         this.audio = new AudioController();
 
@@ -271,19 +275,89 @@ class Game {
         this.highScoreEl = document.getElementById('high-score-value');
         this.gravityIcon = document.getElementById('gravity-icon');
         this.gravityLabel = document.getElementById('gravity-label');
+        this.userDisplay = document.getElementById('user-display');
 
         if (this.highScoreEl) {
             this.highScoreEl.innerText = this.padScore(this.highScore);
         }
 
-        // Buttons
-        document.getElementById('start-button').addEventListener('click', () => this.start());
-        document.getElementById('restart-button').addEventListener('click', () => this.start());
-        document.getElementById('resume-button').addEventListener('click', () => this.togglePause());
+        this.setupEventListeners();
 
         // Initial sizing and initialization
         this.handleResize();
         this.init();
+        this.loop();
+    }
+
+    setupEventListeners() {
+        // Login
+        document.getElementById('login-button').addEventListener('click', () => {
+            const val = document.getElementById('username-input').value.trim();
+            if (val) {
+                this.userName = val;
+                localStorage.setItem('snike_user', val);
+                this.userDisplay.innerText = val;
+                this.gameState = 'START';
+                this.updateOverlays();
+            }
+        });
+
+        // Customization
+        document.getElementById('customize-button').addEventListener('click', () => {
+            this.gameState = 'CUSTOMIZE';
+            this.updateOverlays();
+        });
+
+        document.getElementById('back-to-menu').addEventListener('click', () => {
+            this.gameState = 'START';
+            this.updateOverlays();
+        });
+
+        document.querySelectorAll('#color-options .opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelector('#color-options .opt.active').classList.remove('active');
+                opt.classList.add('active');
+                this.snakeColor = opt.dataset.color;
+                localStorage.setItem('snike_color', this.snakeColor);
+                if (this.snake) this.snake.color = this.snakeColor;
+            });
+        });
+
+        document.querySelectorAll('#theme-options .opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelector('#theme-options .opt.active').classList.remove('active');
+                opt.classList.add('active');
+                this.gameTheme = opt.dataset.theme;
+                localStorage.setItem('snike_theme', this.gameTheme);
+            });
+        });
+
+        // Mobile Buttons
+        const btns = {
+            'btn-up': { dx: 0, dy: -1 },
+            'btn-down': { dx: 0, dy: 1 },
+            'btn-left': { dx: -1, dy: 0 },
+            'btn-right': { dx: 1, dy: 0 }
+        };
+
+        Object.keys(btns).forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.mobileDirection = btns[id];
+            }, { passive: false });
+            el.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.mobileDirection = null;
+            }, { passive: false });
+            el.addEventListener('mousedown', () => this.mobileDirection = btns[id]);
+            el.addEventListener('mouseup', () => this.mobileDirection = null);
+        });
+
+        document.getElementById('btn-flip').addEventListener('click', (e) => {
+            e.preventDefault();
+            this.flipGravity();
+        });
 
         window.addEventListener('resize', () => {
             this.handleResize();
@@ -296,15 +370,23 @@ class Game {
         });
         window.addEventListener('keyup', (e) => this.keys[e.key] = false);
 
-        this.loop();
+        document.getElementById('start-button').addEventListener('click', () => this.start());
+        document.getElementById('restart-button').addEventListener('click', () => this.start());
+        document.getElementById('resume-button').addEventListener('click', () => this.togglePause());
+
+        if (this.userName) {
+            this.userDisplay.innerText = this.userName;
+            this.gameState = 'START';
+            this.updateOverlays();
+        }
     }
 
     init() {
-        // Use logical dimensions if available, otherwise fallback to canvas
         const w = this.logicalWidth || this.canvas.width;
         const h = this.logicalHeight || this.canvas.height;
 
         this.snake = new Snake(w / 2, h / 2);
+        this.snake.color = this.snakeColor;
         this.food = new Food(w, h);
         this.particles = [];
         this.score = 0;
@@ -383,7 +465,9 @@ class Game {
     }
 
     updateOverlays() {
+        document.getElementById('auth-screen').classList.toggle('active', this.gameState === 'AUTH');
         document.getElementById('start-screen').classList.toggle('active', this.gameState === 'START');
+        document.getElementById('customize-screen').classList.toggle('active', this.gameState === 'CUSTOMIZE');
         document.getElementById('game-over-screen').classList.toggle('active', this.gameState === 'OVER');
         document.getElementById('pause-screen').classList.toggle('active', this.gameState === 'PAUSED');
 
@@ -422,7 +506,17 @@ class Game {
         }
 
         const gravity = GRAVITY_DIRECTIONS[this.gravityIndex];
-        this.snake.update(this.keys, gravity);
+
+        // Combine Keyboard and Mobile Inputs
+        const effectiveKeys = { ...this.keys };
+        if (this.mobileDirection) {
+            if (this.mobileDirection.dx === -1) effectiveKeys['ArrowLeft'] = true;
+            if (this.mobileDirection.dx === 1) effectiveKeys['ArrowRight'] = true;
+            if (this.mobileDirection.dy === -1) effectiveKeys['ArrowUp'] = true;
+            if (this.mobileDirection.dy === 1) effectiveKeys['ArrowDown'] = true;
+        }
+
+        this.snake.update(effectiveKeys, gravity);
 
         // Check Food
         if (this.snake.pos.dist(this.food.pos) < CONFIG.FOOD_SIZE + CONFIG.SNAKE_WIDTH) {
@@ -459,8 +553,17 @@ class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
 
-        // Grid background effect (subtle)
-        this.drawGrid();
+        // Theme Backgrounds
+        if (this.gameTheme === 'neon') {
+            this.ctx.fillStyle = '#0a0a20';
+            this.this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
+            this.drawGrid('rgba(255, 0, 255, 0.05)');
+        } else if (this.gameTheme === 'void') {
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
+        } else {
+            this.drawGrid('rgba(0, 242, 255, 0.03)');
+        }
 
         if (this.gameState === 'PLAYING' || this.gameState === 'OVER' || this.gameState === 'PAUSED') {
             this.food.draw(this.ctx);
@@ -470,8 +573,8 @@ class Game {
         }
     }
 
-    drawGrid() {
-        this.ctx.strokeStyle = 'rgba(0, 242, 255, 0.03)';
+    drawGrid(color = 'rgba(0, 242, 255, 0.03)') {
+        this.ctx.strokeStyle = color;
         this.ctx.lineWidth = 1;
         const spacing = 50;
 

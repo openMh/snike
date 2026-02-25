@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="style.css">
     <meta name="description"
         content="A modern, anti-gravity snake game with smooth 360-degree movement and dynamic physics.">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
@@ -36,14 +38,53 @@
                 </div>
             </div>
 
-            <div id="start-screen" class="overlay active">
+            <div id="auth-screen" class="overlay active">
                 <h1>ANTI-GRAVITY<span>SNAKE</span></h1>
-                <p class="tagline">Navigate the void. Defy physics.</p>
-                <div class="controls-hint">
+                <div class="auth-box">
+                    <h3 id="auth-title">IDENTITY SYNC</h3>
+                    <input type="text" id="username-input" placeholder="USERNAME" maxlength="12">
+                    <button id="login-button">STABLISH LINK</button>
+                    <p class="auth-hint">Enter any name to synchronize</p>
+                </div>
+            </div>
+
+            <div id="start-screen" class="overlay">
+                <h1>ANTI-GRAVITY<span>SNAKE</span></h1>
+                <p class="tagline">Welcome, <span id="user-display">Pilot</span></p>
+                <div class="menu-buttons">
+                    <button id="start-button">INITIALIZE ENGINE</button>
+                    <button id="customize-button" class="secondary-btn"><i class="fas fa-paint-brush"></i>
+                        CUSTOMIZE</button>
+                </div>
+                <div class="controls-hint desktop-only">
                     <div><span>WASD / ARROWS</span> Move</div>
                     <div><span>SPACE</span> Flip Gravity</div>
                 </div>
-                <button id="start-button">INITIALIZE ENGINE</button>
+            </div>
+
+            <div id="customize-screen" class="overlay">
+                <h3>MODIFICATION LAB</h3>
+                <div class="custom-grid">
+                    <div class="custom-section">
+                        <span class="label">SNAKE CORE</span>
+                        <div class="options" id="color-options">
+                            <div class="opt active" data-color="#00f2ff" style="background: #00f2ff"></div>
+                            <div class="opt" data-color="#7000ff" style="background: #7000ff"></div>
+                            <div class="opt" data-color="#ffcc00" style="background: #ffcc00"></div>
+                            <div class="opt" data-color="#00ff44" style="background: #00ff44"></div>
+                        </div>
+                    </div>
+                    <div class="custom-section">
+                        <span class="label">ENVIRONMENT</span>
+                        <div class="options" id="theme-options">
+                            <div class="opt active" data-theme="space" title="Deep Space"><i
+                                    class="fas fa-user-astronaut"></i></div>
+                            <div class="opt" data-theme="neon" title="Cyber City"><i class="fas fa-city"></i></div>
+                            <div class="opt" data-theme="void" title="Pure Void"><i class="fas fa-circle"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <button id="back-to-menu">CONFIRM MODS</button>
             </div>
 
             <div id="game-over-screen" class="overlay">
@@ -61,6 +102,19 @@
                 <h2>STASIS ACTIVE</h2>
                 <p>Press ESC to Resume</p>
                 <button id="resume-button">RESUME MISSION</button>
+            </div>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls">
+            <div class="d-pad">
+                <button id="btn-up" class="ctrl-btn"><i class="fas fa-chevron-up"></i></button>
+                <div class="middle-row">
+                    <button id="btn-left" class="ctrl-btn"><i class="fas fa-chevron-left"></i></button>
+                    <button id="btn-flip" class="ctrl-btn action-btn"><i class="fas fa-bolt"></i></button>
+                    <button id="btn-right" class="ctrl-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <button id="btn-down" class="ctrl-btn"><i class="fas fa-chevron-down"></i></button>
             </div>
         </div>
 
