@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti-Gravity Snake | Neon Space Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@300;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <meta name="description"
+        content="A modern, anti-gravity snake game with smooth 360-degree movement and dynamic physics.">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- UI Overlays -->
+        <div id="ui-layer">
+            <div class="top-bar">
+                <div class="score-container">
+                    <span class="label">SCORE</span>
+                    <span id="score-value">000</span>
+                </div>
+                <div class="gravity-indicator">
+                    <div id="gravity-icon">↓</div>
+                    <span id="gravity-label">GRAVITY: DOWN</span>
+                </div>
+                <div class="high-score-container">
+                    <span class="label">BEST</span>
+                    <span id="high-score-value">000</span>
+                </div>
+            </div>
+
+            <div id="start-screen" class="overlay active">
+                <h1>ANTI-GRAVITY<span>SNAKE</span></h1>
+                <p class="tagline">Navigate the void. Defy physics.</p>
+                <div class="controls-hint">
+                    <div><span>WASD / ARROWS</span> Move</div>
+                    <div><span>SPACE</span> Flip Gravity</div>
+                </div>
+                <button id="start-button">INITIALIZE ENGINE</button>
+            </div>
+
+            <div id="game-over-screen" class="overlay">
+                <h2>SYSTEM FAILURE</h2>
+                <div class="final-stats">
+                    <div class="stat">
+                        <span class="label">SCORE</span>
+                        <span id="final-score">0</span>
+                    </div>
+                </div>
+                <button id="restart-button">REBOOT SYSTEM</button>
+            </div>
+
+            <div id="pause-screen" class="overlay">
+                <h2>STASIS ACTIVE</h2>
+                <p>Press ESC to Resume</p>
+                <button id="resume-button">RESUME MISSION</button>
+            </div>
+        </div>
+
+        <!-- Visual cues -->
+        <div id="gravity-flip-flash"></div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
