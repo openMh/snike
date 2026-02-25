@@ -272,6 +272,8 @@ class Game {
         this.gravityIndex = 0;
         this.lastGravityChange = 0;
         this.mobileDirection = null;
+        this.bgOffset = 0; // For moving 3D grid
+        this.stars = this.initStars();
 
         this.audio = new AudioController();
 
@@ -421,6 +423,19 @@ class Game {
         this.updateGravityUI();
     }
 
+    initStars() {
+        const stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * 2000,
+                y: Math.random() * 2000,
+                size: Math.random() * 2,
+                speed: Math.random() * 0.5 + 0.1
+            });
+        }
+        return stars;
+    }
+
     handleResize() {
         const container = document.getElementById('game-container');
         const dpr = window.devicePixelRatio || 1;
@@ -525,11 +540,14 @@ class Game {
 
     update() {
         if (this.gameState !== 'PLAYING' && this.gameState !== 'OVER') {
-            // Even if not playing, we can still update food/particles for aesthetic
+            // Even if not playing, animate background
+            this.bgOffset = (this.bgOffset + 0.5) % 100;
             if (this.food) this.food.update();
             this.particles.forEach(p => p.update());
             return;
         }
+
+        this.bgOffset = (this.bgOffset + (this.snake ? this.snake.speed * 0.5 : 1)) % 100;
 
         if (this.gameState === 'PLAYING') {
             // Auto Gravity Change
@@ -587,17 +605,8 @@ class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
 
-        // Theme Backgrounds
-        if (this.gameTheme === 'neon') {
-            this.ctx.fillStyle = '#0a0a20';
-            this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
-            this.drawGrid('rgba(255, 0, 255, 0.05)');
-        } else if (this.gameTheme === 'void') {
-            this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
-        } else {
-            this.drawGrid('rgba(0, 242, 255, 0.03)');
-        }
+        // 3D Background Rendering
+        this.draw3DBackground();
 
         if (this.gameState === 'PLAYING' || this.gameState === 'OVER' || this.gameState === 'PAUSED') {
             if (this.food) this.food.draw(this.ctx);
@@ -606,23 +615,66 @@ class Game {
         }
     }
 
-    drawGrid(color = 'rgba(0, 242, 255, 0.03)') {
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 1;
-        const spacing = 50;
+    draw3DBackground() {
+        const w = this.logicalWidth;
+        const h = this.logicalHeight;
+        const horizon = h * 0.4;
 
-        for (let x = 0; x < this.logicalWidth; x += spacing) {
+        // Background Gradient
+        let bgGradient = this.ctx.createLinearGradient(0, 0, 0, h);
+        if (this.gameTheme === 'neon') {
+            bgGradient.addColorStop(0, '#050010');
+            bgGradient.addColorStop(0.4, '#1a0033');
+            bgGradient.addColorStop(1, '#050010');
+        } else if (this.gameTheme === 'void') {
+            bgGradient.addColorStop(0, '#000');
+            bgGradient.addColorStop(1, '#050505');
+        } else {
+            bgGradient.addColorStop(0, '#000510');
+            bgGradient.addColorStop(0.4, '#001a33');
+            bgGradient.addColorStop(1, '#000510');
+        }
+        this.ctx.fillStyle = bgGradient;
+        this.ctx.fillRect(0, 0, w, h);
+
+        // Parallax Stars
+        this.ctx.fillStyle = '#fff';
+        this.stars.forEach(star => {
+            const x = (star.x - (this.snake ? this.snake.pos.x * star.speed * 0.1 : 0)) % w;
+            const y = (star.y - (this.snake ? this.snake.pos.y * star.speed * 0.1 : 0)) % h;
             this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.logicalHeight);
+            this.ctx.arc(x < 0 ? x + w : x, y < 0 ? y + h : y, star.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+
+        if (this.gameTheme === 'void') return;
+
+        // Perspective Grid
+        const gridColor = this.gameTheme === 'neon' ? 'rgba(255, 0, 255, 0.2)' : 'rgba(0, 242, 255, 0.2)';
+        this.ctx.strokeStyle = gridColor;
+        this.ctx.lineWidth = 1;
+
+        // Vanishing point lines (Vertical)
+        for (let x = -w; x <= w * 2; x += 100) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(w / 2, horizon);
+            this.ctx.lineTo(x, h);
             this.ctx.stroke();
         }
-        for (let y = 0; y < this.logicalHeight; y += spacing) {
+
+        // Horizontal lines with movement
+        for (let y = 0; y <= 20; y++) {
+            const lineY = horizon + Math.pow(y / 20, 2) * (h - horizon);
+            const moveY = (lineY + this.bgOffset) % (h - horizon) + horizon;
+            const alpha = (moveY - horizon) / (h - horizon);
+
+            this.ctx.globalAlpha = alpha * 0.5;
             this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.logicalWidth, y);
+            this.ctx.moveTo(0, moveY);
+            this.ctx.lineTo(w, moveY);
             this.ctx.stroke();
         }
+        this.ctx.globalAlpha = 1.0;
     }
 
     loop() {
