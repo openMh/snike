@@ -308,8 +308,19 @@ class Game {
             this.updateOverlays();
         });
 
+        document.getElementById('in-game-settings').addEventListener('click', () => {
+            if (this.gameState === 'PLAYING') {
+                this.previousState = 'PAUSED';
+                this.gameState = 'CUSTOMIZE';
+            } else if (this.gameState === 'START' || this.gameState === 'PAUSED' || this.gameState === 'OVER') {
+                this.previousState = this.gameState;
+                this.gameState = 'CUSTOMIZE';
+            }
+            this.updateOverlays();
+        });
+
         document.getElementById('back-to-menu').addEventListener('click', () => {
-            this.gameState = 'START';
+            this.gameState = this.previousState || 'START';
             this.updateOverlays();
         });
 
@@ -497,55 +508,62 @@ class Game {
     }
 
     update() {
-        if (this.gameState !== 'PLAYING') return;
-
-        // Auto Gravity Change
-        if (Date.now() - this.lastGravityChange > CONFIG.GRAVITY_CHANGE_INTERVAL) {
-            this.flipGravity();
-            this.lastGravityChange = Date.now();
+        if (this.gameState !== 'PLAYING' && this.gameState !== 'OVER') {
+            // Even if not playing, we can still update food/particles for aesthetic
+            if (this.food) this.food.update();
+            this.particles.forEach(p => p.update());
+            return;
         }
 
-        const gravity = GRAVITY_DIRECTIONS[this.gravityIndex];
-
-        // Combine Keyboard and Mobile Inputs
-        const effectiveKeys = { ...this.keys };
-        if (this.mobileDirection) {
-            if (this.mobileDirection.dx === -1) effectiveKeys['ArrowLeft'] = true;
-            if (this.mobileDirection.dx === 1) effectiveKeys['ArrowRight'] = true;
-            if (this.mobileDirection.dy === -1) effectiveKeys['ArrowUp'] = true;
-            if (this.mobileDirection.dy === 1) effectiveKeys['ArrowDown'] = true;
-        }
-
-        this.snake.update(effectiveKeys, gravity);
-
-        // Check Food
-        if (this.snake.pos.dist(this.food.pos) < CONFIG.FOOD_SIZE + CONFIG.SNAKE_WIDTH) {
-            this.score += 10;
-            this.scoreEl.innerText = this.padScore(this.score);
-            this.snake.grow();
-            this.audio.playEat();
-
-            // Particles
-            for (let i = 0; i < CONFIG.PARTICLE_COUNT; i++) {
-                this.particles.push(new Particle(this.food.pos, CONFIG.ACCENT_NEON));
+        if (this.gameState === 'PLAYING') {
+            // Auto Gravity Change
+            if (Date.now() - this.lastGravityChange > CONFIG.GRAVITY_CHANGE_INTERVAL) {
+                this.flipGravity();
+                this.lastGravityChange = Date.now();
             }
-            this.food.spawn();
-        }
 
-        // Check Collision (with 1s grace period at start)
-        if (Date.now() - this.startTime > 1000) {
-            if (this.snake.checkCollision(this.logicalWidth, this.logicalHeight)) {
-                this.gameOver();
+            const gravity = GRAVITY_DIRECTIONS[this.gravityIndex];
+
+            // Combine Keyboard and Mobile Inputs
+            const effectiveKeys = { ...this.keys };
+            if (this.mobileDirection) {
+                if (this.mobileDirection.dx === -1) effectiveKeys['ArrowLeft'] = true;
+                if (this.mobileDirection.dx === 1) effectiveKeys['ArrowRight'] = true;
+                if (this.mobileDirection.dy === -1) effectiveKeys['ArrowUp'] = true;
+                if (this.mobileDirection.dy === 1) effectiveKeys['ArrowDown'] = true;
             }
-        }
 
-        this.food.update();
+            this.snake.update(effectiveKeys, gravity);
 
-        // Update particles
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            this.particles[i].update();
-            if (this.particles[i].life <= 0) {
-                this.particles.splice(i, 1);
+            // Check Food
+            if (this.snake.pos.dist(this.food.pos) < CONFIG.FOOD_SIZE + CONFIG.SNAKE_WIDTH) {
+                this.score += 10;
+                this.scoreEl.innerText = this.padScore(this.score);
+                this.snake.grow();
+                this.audio.playEat();
+
+                // Particles
+                for (let i = 0; i < CONFIG.PARTICLE_COUNT; i++) {
+                    this.particles.push(new Particle(this.food.pos, CONFIG.ACCENT_NEON));
+                }
+                this.food.spawn();
+            }
+
+            // Check Collision (with 1s grace period at start)
+            if (Date.now() - this.startTime > 1000) {
+                if (this.snake.checkCollision(this.logicalWidth, this.logicalHeight)) {
+                    this.gameOver();
+                }
+            }
+
+            this.food.update();
+
+            // Update particles
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                this.particles[i].update();
+                if (this.particles[i].life <= 0) {
+                    this.particles.splice(i, 1);
+                }
             }
         }
     }
@@ -556,7 +574,7 @@ class Game {
         // Theme Backgrounds
         if (this.gameTheme === 'neon') {
             this.ctx.fillStyle = '#0a0a20';
-            this.this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
+            this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
             this.drawGrid('rgba(255, 0, 255, 0.05)');
         } else if (this.gameTheme === 'void') {
             this.ctx.fillStyle = '#000';
@@ -566,9 +584,8 @@ class Game {
         }
 
         if (this.gameState === 'PLAYING' || this.gameState === 'OVER' || this.gameState === 'PAUSED') {
-            this.food.draw(this.ctx);
-            this.snake.draw(this.ctx);
-
+            if (this.food) this.food.draw(this.ctx);
+            if (this.snake) this.snake.draw(this.ctx);
             this.particles.forEach(p => p.draw(this.ctx));
         }
     }
