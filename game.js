@@ -152,7 +152,7 @@ class Snake {
 
         // Initialize segments trailing behind the head
         for (let i = 0; i < this.length; i++) {
-            this.segments.push(new Vector(x, y + i * 2));
+            this.segments.push(new Vector(x, y));
         }
     }
 
@@ -201,31 +201,34 @@ class Snake {
     }
 
     draw(ctx) {
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // Glow effect
-        ctx.shadowBlur = CONFIG.GLOW_INTENSITY;
+        // Draw glow trail (wider base)
+        ctx.shadowBlur = CONFIG.GLOW_INTENSITY * 1.5;
         ctx.shadowColor = this.color || CONFIG.PRIMARY_NEON;
 
-        // Draw body
-        ctx.beginPath();
-        ctx.strokeStyle = this.color || CONFIG.PRIMARY_NEON;
-        ctx.lineWidth = CONFIG.SNAKE_WIDTH;
+        // Draw segmented organic body
+        for (let i = this.segments.length - 1; i >= 0; i -= 2) {
+            const seg = this.segments[i];
+            const sizeRatio = (1 - i / this.segments.length); // Tapering effect
+            const size = (CONFIG.SNAKE_WIDTH * sizeRatio) + 2;
 
-        ctx.moveTo(this.segments[0].x, this.segments[0].y);
-        for (let i = 1; i < this.segments.length; i++) {
-            ctx.lineTo(this.segments[i].x, this.segments[i].y);
+            ctx.fillStyle = this.color || CONFIG.PRIMARY_NEON;
+            ctx.globalAlpha = sizeRatio * 0.8;
+
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, size / 2, 0, Math.PI * 2);
+            ctx.fill();
         }
-        ctx.stroke();
 
-        // Draw head
+        // Draw head (bright core)
+        ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#fff';
+        ctx.shadowBlur = CONFIG.GLOW_INTENSITY;
         ctx.beginPath();
-        ctx.arc(this.pos.x, this.pos.y, CONFIG.SNAKE_WIDTH / 1.5, 0, Math.PI * 2);
+        ctx.arc(this.pos.x, this.pos.y, CONFIG.SNAKE_WIDTH / 1.6, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1.0;
     }
 
     checkCollision(width, height) {
@@ -263,6 +266,8 @@ class Game {
         this.userName = localStorage.getItem('snike_user') || '';
         this.snakeColor = localStorage.getItem('snike_color') || CONFIG.PRIMARY_NEON;
         this.gameTheme = localStorage.getItem('snike_theme') || 'space';
+        this.baseSpeed = parseFloat(localStorage.getItem('snike_speed')) || CONFIG.INITIAL_SNAKE_SPEED;
+
         this.gameState = 'AUTH';
         this.gravityIndex = 0;
         this.lastGravityChange = 0;
@@ -343,6 +348,16 @@ class Game {
             });
         });
 
+        document.querySelectorAll('#speed-options .opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelector('#speed-options .opt.active').classList.remove('active');
+                opt.classList.add('active');
+                this.baseSpeed = parseFloat(opt.dataset.speed);
+                localStorage.setItem('snike_speed', this.baseSpeed);
+                if (this.snake) this.snake.speed = this.baseSpeed;
+            });
+        });
+
         // Mobile Buttons
         const btns = {
             'btn-up': { dx: 0, dy: -1 },
@@ -398,6 +413,7 @@ class Game {
 
         this.snake = new Snake(w / 2, h / 2);
         this.snake.color = this.snakeColor;
+        this.snake.speed = this.baseSpeed; // Apply chosen speed
         this.food = new Food(w, h);
         this.particles = [];
         this.score = 0;
